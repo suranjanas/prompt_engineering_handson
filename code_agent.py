@@ -1,6 +1,9 @@
-import json
+import json, os
 from IPython.display import Image, display
 from collections import defaultdict
+from langchain.prompts import PromptTemplate
+from langgraph.graph import StateGraph, END
+from typing import TypedDict
 
 from langchain_ollama import ChatOllama
 
@@ -10,47 +13,8 @@ llm = ChatOllama(
     base_url = "http://localhost:11434",
     temperature=0.9, num_predict=64)
 
-from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import RetrievalQA
-from langchain.llms import OpenAI
 
-#global variable for code refinement
-interm_values_list = []
-class interm_values():
-    def __init__(self):
-        interm_values = {}
-        interm_values["task_desc"] = ""
-        interm_values["gen_code"] = ""
-        interm_values["functionality"] = ""
-        interm_values["matcher"] = ""
-        interm_values["error_analysis"] = ""
-        interm_values["refined_code"] = ""
-    def set_task_desc(self,task_desc):
-        interm_values["task_desc"] = task_desc
-    def set_gen_code(self,gen_code):
-        interm_values["gen_code"] = gen_code
-    def set_functionlity(self,functionality):
-        interm_values["functionality"] = functionality
-    def set_matcher(self,matcher):
-        interm_values["matcher"] = matcher
-    def set_error_analysis(self,error_analysis):
-        interm_values["error_analysis"] = error_analysis
-    def set_refined_code(self,refined_code):
-        interm_values["refined_code"] = refined_code
-    def get_task_desc(self):
-        return interm_values["task_desc"]
-    def get_gen_code(self):
-        return interm_values["gen_code"]
-    def get_functionlity(self):
-        return interm_values["functionality"]
-    def get_matcher(self):
-        return interm_values["matcher"]
-    def get_error_analysis(self):
-        return interm_values["error_analysis"]
-    def get_refined_code(self):
-        return interm_values["refined_code"]
-    
+   
 
 # Creating the first analysis agent to check the prompt structure
 # This print part helps you to trace the graph decisions
@@ -176,9 +140,6 @@ def answer_generic_question(state):
     return {"output": response}
 
 
-from langgraph.graph import StateGraph, END
-from typing import Annotated, TypedDict
-#from agents import analyze_question, answer_code_question, answer_generic_question
 
 #You can precise the format here which could be helpfull for multimodal graphs
 class AgentState(TypedDict):
@@ -189,7 +150,8 @@ class AgentState(TypedDict):
 #Here is a simple 3 steps graph that is going to be working in the bellow "decision" condition
 def create_graph():
     workflow = StateGraph(AgentState)
-
+    workflow.add_node("get_input", get_user_input)
+    #workflow.add_node("process_question", process_question)
     workflow.add_node("analyze", analyze_question)
     workflow.add_node("code_agent", answer_code_question)
     workflow.add_node("functionality_agent", code_functionality)
@@ -198,6 +160,16 @@ def create_graph():
     workflow.add_node("refinement_agent", refine_code)
     workflow.add_node("generic_agent", answer_generic_question)
 
+
+    workflow.add_conditional_edges(
+        "get_input",
+        lambda x: "continue" if x["continue_conversation"] else "end",
+        {
+            "continue": "analyze",
+            "end": END
+        }
+    )
+    
     workflow.add_conditional_edges(
         "analyze",
         lambda x: x["decision"],
@@ -211,48 +183,49 @@ def create_graph():
         lambda x: "no" if x["output"]["matcher"].content.lower().strip()=="no" else "yes",
         {
             "no": "error_explanation_agent",
-            "yes": END
+            "yes": "get_input"
         }
     )
-
-    workflow.set_entry_point("analyze")
+    workflow.set_entry_point("get_input")
+    #workflow.set_entry_point("analyze")
+    #workflow.add_edge("get_input", "analyze")
+    #workflow.add_edge("process_question", "get_input")
     workflow.add_edge("code_agent", "functionality_agent")
-    workflow.add_edge(["functionality_agent"], "task_fuction_matcher_agent")
+    workflow.add_edge("functionality_agent", "task_fuction_matcher_agent")
     workflow.add_edge("error_explanation_agent", "refinement_agent")
-    workflow.add_edge("refinement_agent", END)
-    workflow.add_edge("generic_agent", END)
-    workflow.add_edge("task_fuction_matcher_agent", END)
+    workflow.add_edge("refinement_agent", "get_input")
+    workflow.add_edge("generic_agent", "get_input")
+    #workflow.add_edge("get_input", END)
+    #workflow.add_edge("refinement_agent", END)
+    #workflow.add_edge("generic_agent", END)
+    #workflow.add_edge("task_fuction_matcher_agent", END)
 
     return workflow.compile()
 
 
-import os
 
 #Embedding API keys directly in your code is definilty not secure or recommended for production environments.
 #Always use proper key management practices.
-os.environ["OPENAI_API_KEY"] = "your-openai-key"
 
-#from graph import create_graph
-from typing import Annotated, TypedDict
-from langgraph.graph import StateGraph, END
 
 class UserInput(TypedDict):
     input: str
     continue_conversation: bool
 
 def get_user_input(state: UserInput) -> UserInput:
-    user_input = input("\nEnter your question (ou 'q' to quit) : ")
+    user_input = input("\nEnter your question (press 'q' to quit) : ")
+    continue_conversation = True if user_input.lower() not in ['q', 'quit', 'bye', 'exit'] else False
     return {
         "input": user_input,
-        "continue_conversation": user_input.lower() != 'q'
+        "continue_conversation": continue_conversation
     }
 
-def process_question(state: UserInput):
+def process_question():#state: UserInput):
     graph = create_graph()
-    result = graph.invoke({"input": state["input"]})
-    print("\n--- Final answer ---")
-    print(result["output"])
-    return state
+    display(Image(graph.get_graph().draw_png()))
+    #result = graph.invoke("input": state["input"]})
+    result = graph.invoke({"input": "", "continue_conversation": True})
+    return result
 
 def create_conversation_graph():
     workflow = StateGraph(UserInput)
@@ -276,9 +249,17 @@ def create_conversation_graph():
     return workflow.compile()
 
 def main():
-    conversation_graph = create_conversation_graph()
-    display(Image(conversation_graph.get_graph().draw_png()))
-    conversation_graph.invoke({"input": "", "continue_conversation": True})
+    # conversation_graph = create_conversation_graph()
+    # display(Image(conversation_graph.get_graph().draw_png()))
+    # conversation_graph.invoke({"input": "", "continue_conversation": True})
+    result = process_question()
+    try:
+        if result["input"].lower() in ['q','quit','bye','exit']:
+            print("Bye, see you again!!")
+    except:
+        print("\n--- Final answer ---")
+        print(result["output"])
+
 
 if __name__ == "__main__":
     main()
