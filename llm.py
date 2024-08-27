@@ -10,7 +10,7 @@ import os
 
 
 class BAM_LLM:
-    def __init__(self, source="bam"):
+    def __init__(self, source="watsonx"):
         load_dotenv()
 
         self.source = source

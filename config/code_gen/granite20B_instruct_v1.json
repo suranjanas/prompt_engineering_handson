@@ -1,0 +1,13 @@
+{
+    "model_id": "ibm/granite-20b-code-instruct-v1",
+    "generation_params": {
+        "decoding_method": "sample",
+        "temperature": 0.2 ,
+        "top_p": 0.95,
+        "top_k": 100,
+        "max_new_tokens": 1024,
+        "min_new_tokens": 1,
+        "repetition_penalty": 1,
+        "random_seed": 100
+    }
+}

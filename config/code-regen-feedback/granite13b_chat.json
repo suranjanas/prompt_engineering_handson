@@ -1,0 +1,14 @@
+{
+        "model_id": "ibm/granite-13b-chat-v2",
+        "generation_params": {
+                "decoding_method":"sample",
+                "temperature": 0.6,
+                "top_p":0.95,
+                "repetition_penalty":1.2,
+                "top_k":50,
+                "max_new_tokens":1024,
+                "stop_sequences":["Input:"],
+                "random_seed":100,
+                "min_new_tokens":20
+        }
+}

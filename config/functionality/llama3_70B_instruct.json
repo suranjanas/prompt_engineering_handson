@@ -1,0 +1,13 @@
+{
+    "model_id": "meta-llama/llama-3-70b-instruct",
+    "generation_params": {
+        "decoding_method": "sample",
+        "temperature": 0.7 ,
+        "top_p": 0.85,
+        "top_k": 50,
+        "max_new_tokens": 1024,
+        "min_new_tokens": 1,
+        "repetition_penalty": 1.05,
+        "random_seed": 100
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "model_id": "codellama/codellama-34b-instruct",
+    "generation_params": {
+        "decoding_method": "sample",
+        "temperature": 0.2 ,
+        "top_p": 0.95,
+        "top_k": 100,
+        "max_new_tokens": 1024,
+        "min_new_tokens": 1,
+        "repetition_penalty": 1.2,
+        "random_seed": 100
+    }
+}

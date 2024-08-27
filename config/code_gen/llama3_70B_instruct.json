@@ -1,0 +1,8 @@
+{
+    "model_id": "meta-llama/llama-3-70b-instruct",
+    "generation_params": {
+        "decoding_method": "greedy",
+        "max_new_tokens": 1024,
+        "min_new_tokens": 1
+    }
+}
